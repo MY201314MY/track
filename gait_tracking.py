@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from matplotlib import animation
-from scipy.interpolate import interp1d
+
 import imufusion
 import matplotlib.pyplot as pyplot
 import numpy
+from matplotlib import animation
+from scipy.interpolate import interp1d
 
 # Import sensor data ("short_walk.csv" or "long_walk.csv")
 data = numpy.genfromtxt("short_walk.csv", delimiter=",", skip_header=1)
@@ -37,12 +38,14 @@ axes[1].legend()
 offset = imufusion.Offset(sample_rate)
 ahrs = imufusion.Ahrs()
 
-ahrs.settings = imufusion.Settings(imufusion.CONVENTION_NWU,
-                                   0.5,  # gain
-                                   2000,  # gyroscope range
-                                   10,  # acceleration rejection
-                                   0,  # magnetic rejection
-                                   5 * sample_rate)  # rejection timeout = 5 seconds
+ahrs.settings = imufusion.Settings(
+    imufusion.CONVENTION_NWU,
+    0.5,  # gain
+    2000,  # gyroscope range
+    10,  # acceleration rejection
+    0,  # magnetic rejection
+    5 * sample_rate,  # rejection timeout = 5 seconds
+)
 
 # Process sensor data
 delta_time = numpy.diff(timestamp, prepend=timestamp[0])
@@ -59,9 +62,13 @@ for index in range(len(timestamp)):
     euler[index] = ahrs.quaternion.to_euler()
 
     ahrs_internal_states = ahrs.internal_states
-    internal_states[index] = numpy.array([ahrs_internal_states.acceleration_error,
-                                          ahrs_internal_states.accelerometer_ignored,
-                                          ahrs_internal_states.acceleration_recovery_trigger])
+    internal_states[index] = numpy.array(
+        [
+            ahrs_internal_states.acceleration_error,
+            ahrs_internal_states.accelerometer_ignored,
+            ahrs_internal_states.acceleration_recovery_trigger,
+        ]
+    )
 
     acceleration[index] = 9.81 * ahrs.earth_acceleration  # convert g to m/s/s
 
@@ -110,10 +117,10 @@ for index in range(len(timestamp)):
 margin = int(0.1 * sample_rate)  # 100 ms
 
 for index in range(len(timestamp) - margin):
-    is_moving[index] = any(is_moving[index:(index + margin)])  # add leading margin
+    is_moving[index] = any(is_moving[index : (index + margin)])  # add leading margin
 
 for index in range(len(timestamp) - 1, margin, -1):
-    is_moving[index] = any(is_moving[(index - margin):index])  # add trailing margin
+    is_moving[index] = any(is_moving[(index - margin) : index])  # add trailing margin
 
 # Plot moving periods
 axes[1].plot(timestamp, is_moving, "tab:cyan", label="Is moving")
@@ -165,11 +172,11 @@ for is_moving_period in is_moving_periods:
     y = [velocity[start_index, 1], velocity[stop_index, 1]]
     z = [velocity[start_index, 2], velocity[stop_index, 2]]
 
-    t_new = timestamp[start_index:(stop_index + 1)]
+    t_new = timestamp[start_index : (stop_index + 1)]
 
-    velocity_drift[start_index:(stop_index + 1), 0] = interp1d(t, x)(t_new)
-    velocity_drift[start_index:(stop_index + 1), 1] = interp1d(t, y)(t_new)
-    velocity_drift[start_index:(stop_index + 1), 2] = interp1d(t, z)(t_new)
+    velocity_drift[start_index : (stop_index + 1), 0] = interp1d(t, x)(t_new)
+    velocity_drift[start_index : (stop_index + 1), 1] = interp1d(t, y)(t_new)
+    velocity_drift[start_index : (stop_index + 1), 2] = interp1d(t, z)(t_new)
 
 velocity = velocity - velocity_drift
 
@@ -239,10 +246,13 @@ if True:
 
         return scatter
 
-    anim = animation.FuncAnimation(figure, update,
-                                   frames=int(len(timestamp) / samples_per_frame),
-                                   interval=1000 / fps,
-                                   repeat=False)
+    anim = animation.FuncAnimation(
+        figure,
+        update,
+        frames=int(len(timestamp) / samples_per_frame),
+        interval=1000 / fps,
+        repeat=False,
+    )
 
     anim.save("animation.gif", writer=animation.PillowWriter(fps))
 
