@@ -208,4 +208,42 @@ axes[3].legend()
 # Print error as distance between start and final positions
 print("Error: " + "{:.3f}".format(numpy.sqrt(position[-1].dot(position[-1]))) + " m")
 
+# ==========================
+# XY轨迹图
+# ==========================
+
+pyplot.figure(figsize=(8, 8))
+
+pyplot.plot(
+    position[:, 0],
+    position[:, 1],
+    linewidth=2,
+    label="Trajectory"
+)
+
+# 起点
+pyplot.scatter(
+    position[0, 0],
+    position[0, 1],
+    marker="o",
+    s=100,
+    label="Start"
+)
+
+# 终点
+pyplot.scatter(
+    position[-1, 0],
+    position[-1, 1],
+    marker="x",
+    s=100,
+    label="End"
+)
+
+pyplot.xlabel("X Position (m)")
+pyplot.ylabel("Y Position (m)")
+pyplot.title("2D Trajectory")
+pyplot.axis("equal")      # 保持比例
+pyplot.grid(True)
+pyplot.legend()
+
 pyplot.show()
