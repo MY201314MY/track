@@ -249,10 +249,32 @@ def update_anim(frame):
         status_text.set_text('')
         return line_anim, start_scatter, end_scatter, live_point, past_point, time_text, status_text
 
-    # 用窗口起点->终点向量计算整体朝向，目标为 +Y (pi/2)
+    # 用窗口最近 20% 的点确定运动方向（优先），确保使用最近的运动趋势；
+    # 在样本过少或位移很小时再回退到全窗口位移或 PCA。
     if len(pts) >= 2:
-        vec = pts[-1] - pts[0]
-        raw_angle = numpy.arctan2(vec[1], vec[0])
+        subset_len = max(2, int(len(pts) * 0.2))
+        pts_sub = pts[-subset_len:]
+        disp = pts_sub[-1] - pts_sub[0]
+        disp_norm = numpy.linalg.norm(disp)
+        if disp_norm > 1e-3:
+            # 使用最近子段的位移向量作为运动方向
+            raw_angle = numpy.arctan2(disp[1], disp[0])
+        else:
+            # 子段位移太小，退回到全窗口位移
+            disp_full = pts[-1] - pts[0]
+            if numpy.linalg.norm(disp_full) > 1e-3:
+                raw_angle = numpy.arctan2(disp_full[1], disp_full[0])
+            else:
+                # 全窗口也无明显位移，使用 PCA 主方向作为后备
+                pts_rel = pts - pts[0]
+                cov = numpy.cov(pts_rel.T)
+                evals, evecs = numpy.linalg.eigh(cov)
+                principal = evecs[:, numpy.argmax(evals)]
+                if last_angle is not None:
+                    last_dir = numpy.array([numpy.cos(last_angle), numpy.sin(last_angle)])
+                    if numpy.dot(principal, last_dir) < 0:
+                        principal = -principal
+                raw_angle = numpy.arctan2(principal[1], principal[0])
     else:
         raw_angle = last_angle if last_angle is not None else 0.0
 
@@ -270,6 +292,11 @@ def update_anim(frame):
     last_angle = smoothed_rotation
 
     pts_aligned = rotate_align(pts, rotation=smoothed_rotation)
+    # center horizontally so the motion is vertically centered in the window
+    # (subtract mean x so trajectory doesn't hug the Y axis)
+    # if pts_aligned.shape[0] > 0:
+    #     mean_x = float(numpy.mean(pts_aligned[:, 0]))
+    #     pts_aligned[:, 0] = pts_aligned[:, 0] - mean_x
     xs, ys = pts_aligned[:, 0], pts_aligned[:, 1]
 
     line_anim.set_data(xs, ys)
