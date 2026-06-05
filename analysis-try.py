@@ -7,7 +7,7 @@ from matplotlib import animation
 from scipy.interpolate import interp1d
 
 # Import sensor data ("short_walk.csv" or "long_walk.csv")
-data = numpy.genfromtxt("short_walk.csv", delimiter=",", skip_header=1)
+data = numpy.genfromtxt("walk.csv", delimiter=",", skip_header=1)
 
 sample_rate = 400  # 400 Hz
 
@@ -166,6 +166,11 @@ pyplot.axis("equal")      # 保持比例
 pyplot.grid(True)
 pyplot.legend()
 
+# 在第一幅图上添加一个“实时点”，显示第二幅图（窗口当前时刻）对应的全局坐标
+traj_ax = pyplot.gca()
+live_point = traj_ax.scatter(position[0, 0], position[0, 1], c='magenta', s=80, label='Live')
+traj_ax.legend()
+
 # 动态显示最近5秒的相对轨迹（对齐到窗口起始朝向），便于识别左转/右转的局部模式
 window_duration = 5.0  # seconds
 window_samples = int(window_duration * sample_rate)
@@ -183,6 +188,10 @@ ax_anim.set_xlim(-5, 5)
 ax_anim.set_ylim(-5, 5)
 ax_anim.grid()
 ax_anim.legend()
+
+# add time and motion-status text (显示在图像左上角)
+time_text = ax_anim.text(0.02, 0.95, '', transform=ax_anim.transAxes, fontsize=10, va='top')
+status_text = ax_anim.text(0.02, 0.88, '', transform=ax_anim.transAxes, fontsize=10, va='top')
 
 # 将窗口内点云平移到起点并以起始运动方向对齐到x轴
 # 改进：允许传入平滑后的角度，避免帧间突然旋转
@@ -206,7 +215,11 @@ def init_anim():
     line_anim.set_data([], [])
     start_scatter.set_offsets(numpy.empty((0, 2)))
     end_scatter.set_offsets(numpy.empty((0, 2)))
-    return line_anim, start_scatter, end_scatter
+    # 初始化第一幅图的实时点为空
+    live_point.set_offsets(numpy.empty((0, 2)))
+    time_text.set_text('')
+    status_text.set_text('')
+    return line_anim, start_scatter, end_scatter, live_point, time_text, status_text
 
 def update_anim(frame):
     global last_angle
@@ -244,7 +257,19 @@ def update_anim(frame):
     # 起点在对齐后的坐标应为 (0,0)
     start_scatter.set_offsets([[xs[0], ys[0]]])
     end_scatter.set_offsets([[xs[-1], ys[-1]]])
-    return line_anim, start_scatter, end_scatter
+
+    # update time and motion status text, and print to console
+    t = float(timestamp[idx])
+    moving = bool(is_moving[idx])
+    status_str = 'Moving' if moving else 'Stopped'
+    time_text.set_text(f"t = {t:.2f} s")
+    status_text.set_text(status_str)
+    status_text.set_color('green' if moving else 'gray')
+
+    # 更新第一幅图上的实时点（使用绝对轨迹坐标）
+    live_point.set_offsets([[position[idx, 0], position[idx, 1]]])
+
+    return line_anim, start_scatter, end_scatter, live_point, time_text, status_text
 
 frames = int(numpy.ceil(len(timestamp) / anim_step))
 ani = animation.FuncAnimation(fig_anim, update_anim, frames=frames, init_func=init_anim, blit=True, interval=1000/20)
