@@ -169,6 +169,8 @@ pyplot.legend()
 # 在第一幅图上添加一个“实时点”，显示第二幅图（窗口当前时刻）对应的全局坐标
 traj_ax = pyplot.gca()
 live_point = traj_ax.scatter(position[0, 0], position[0, 1], c='magenta', s=80, label='Live')
+# point for 5 seconds earlier (or start if not enough history)
+past_point = traj_ax.scatter(position[0, 0], position[0, 1], c='cyan', s=60, label='T-5s')
 traj_ax.legend()
 
 # 动态显示最近5秒的相对轨迹（对齐到窗口起始朝向），便于识别左转/右转的局部模式
@@ -226,9 +228,10 @@ def init_anim():
     end_scatter.set_offsets(numpy.empty((0, 2)))
     # 初始化第一幅图的实时点为空
     live_point.set_offsets(numpy.empty((0, 2)))
+    past_point.set_offsets(numpy.empty((0, 2)))
     time_text.set_text('')
     status_text.set_text('')
-    return line_anim, start_scatter, end_scatter, live_point, time_text, status_text
+    return line_anim, start_scatter, end_scatter, live_point, past_point, time_text, status_text
 
 def update_anim(frame):
     global last_angle
@@ -241,9 +244,10 @@ def update_anim(frame):
         start_scatter.set_offsets(numpy.empty((0, 2)))
         end_scatter.set_offsets(numpy.empty((0, 2)))
         live_point.set_offsets(numpy.empty((0, 2)))
+        past_point.set_offsets(numpy.empty((0, 2)))
         time_text.set_text('')
         status_text.set_text('')
-        return line_anim, start_scatter, end_scatter, live_point, time_text, status_text
+        return line_anim, start_scatter, end_scatter, live_point, past_point, time_text, status_text
 
     # 用窗口起点->终点向量计算整体朝向，目标为 +Y (pi/2)
     if len(pts) >= 2:
@@ -283,8 +287,11 @@ def update_anim(frame):
 
     # 更新第一幅图上的实时点（使用绝对轨迹坐标）
     live_point.set_offsets([[position[idx, 0], position[idx, 1]]])
+    # 五秒前的点（不足5秒则使用起点）
+    prev_idx = max(0, idx - window_samples)
+    past_point.set_offsets([[position[prev_idx, 0], position[prev_idx, 1]]])
 
-    return line_anim, start_scatter, end_scatter, live_point, time_text, status_text
+    return line_anim, start_scatter, end_scatter, live_point, past_point, time_text, status_text
 
 frames = int(numpy.ceil(len(timestamp) / anim_step))
 ani = animation.FuncAnimation(fig_anim, update_anim, frames=frames, init_func=init_anim, blit=True, interval=1000/20)
