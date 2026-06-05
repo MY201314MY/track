@@ -181,11 +181,20 @@ line_anim, = ax_anim.plot([], [], lw=2, label='Relative trajectory')
 start_scatter = ax_anim.scatter([], [], c='green', s=50, label='Window start')
 end_scatter = ax_anim.scatter([], [], c='red', s=50, label='Now')
 
+# ensure artists are marked animated so blit=True updates them
+line_anim.set_animated(True)
+start_scatter.set_animated(True)
+end_scatter.set_animated(True)
+
 ax_anim.set_title('Last 5s relative trajectory (aligned)')
 ax_anim.set_xlabel('X (m)')
 ax_anim.set_ylabel('Y (m)')
-ax_anim.set_xlim(-5, 5)
-ax_anim.set_ylim(-5, 5)
+# dynamic limits: base on overall trajectory magnitude so the window is larger than default
+max_abs_pos = float(numpy.max(numpy.abs(position[:, :2])))
+pad = 2.0  # extra margin in meters
+lim = max(6.0, max_abs_pos + pad)
+ax_anim.set_xlim(-lim, lim)
+ax_anim.set_ylim(-lim, lim)
 ax_anim.grid()
 ax_anim.legend()
 
@@ -228,7 +237,13 @@ def update_anim(frame):
     pts = position[start_idx: idx + 1, :2]
     if len(pts) == 0:
         line_anim.set_data([], [])
-        return line_anim, start_scatter, end_scatter
+        # make sure all artists are cleared so the returned tuple is consistent
+        start_scatter.set_offsets(numpy.empty((0, 2)))
+        end_scatter.set_offsets(numpy.empty((0, 2)))
+        live_point.set_offsets(numpy.empty((0, 2)))
+        time_text.set_text('')
+        status_text.set_text('')
+        return line_anim, start_scatter, end_scatter, live_point, time_text, status_text
 
     # 用窗口起点->终点向量计算整体朝向，目标为 +Y (pi/2)
     if len(pts) >= 2:
